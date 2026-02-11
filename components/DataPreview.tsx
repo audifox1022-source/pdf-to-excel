@@ -44,7 +44,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({ file, previewId }) => {
       )}
 
       {/* Data Table */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto pdf-table-section">
         <table className="w-full text-sm text-left text-slate-600">
           <thead className="text-xs text-slate-700 uppercase bg-slate-100">
             <tr>

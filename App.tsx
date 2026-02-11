@@ -3,15 +3,27 @@ import { v4 as uuidv4 } from 'uuid';
 import FileUpload from './components/FileUpload';
 import FileItem from './components/FileItem';
 import DataPreview from './components/DataPreview';
+import DownloadModal from './components/DownloadModal';
 import { parseExcelFile } from './services/excelService';
 import { analyzeExcelData } from './services/geminiService';
 import { downloadPDF } from './services/pdfService';
-import { UploadedFile } from './types';
+import { UploadedFile, PDFOptions } from './types';
 import { FileText, Sparkles, CheckCircle2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [globalLoading, setGlobalLoading] = useState(false);
+  
+  // Download Modal State
+  const [downloadModalState, setDownloadModalState] = useState<{
+    isOpen: boolean;
+    fileId: string;
+    fileName: string;
+  }>({
+    isOpen: false,
+    fileId: '',
+    fileName: ''
+  });
 
   const handleFilesSelected = useCallback(async (selectedFiles: File[]) => {
     setGlobalLoading(true);
@@ -28,9 +40,11 @@ const App: React.FC = () => {
           isExpanded: false, // Don't expand automatically to keep list clean
           uploadDate: new Date(),
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Failed to parse ${file.name}`, error);
-        alert(`${file.name} 파일을 읽는 중 오류가 발생했습니다.`);
+        // More specific error handling
+        const errorMessage = error.message || "파일 형식이 올바르지 않거나 손상되었습니다.";
+        alert(`${file.name} 업로드 실패: ${errorMessage}`);
       }
     }
 
@@ -52,9 +66,9 @@ const App: React.FC = () => {
     const fileIndex = files.findIndex(f => f.id === id);
     if (fileIndex === -1) return;
 
-    // Set analyzing state
+    // Set analyzing state and clear previous errors
     setFiles(prev => prev.map(f => 
-      f.id === id ? { ...f, isAnalyzing: true } : f
+      f.id === id ? { ...f, isAnalyzing: true, error: undefined } : f
     ));
 
     try {
@@ -63,15 +77,26 @@ const App: React.FC = () => {
       setFiles(prev => prev.map(f => 
         f.id === id ? { ...f, isAnalyzing: false, summary, isExpanded: true } : f
       ));
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       setFiles(prev => prev.map(f => 
-        f.id === id ? { ...f, isAnalyzing: false } : f
+        f.id === id ? { ...f, isAnalyzing: false, error: error.message } : f
       ));
     }
   };
 
-  const handleDownloadPDF = async (fileId: string, fileName: string) => {
+  const openDownloadModal = (fileId: string, fileName: string) => {
+    setDownloadModalState({
+      isOpen: true,
+      fileId,
+      fileName
+    });
+  };
+
+  const handleConfirmDownload = async (options: PDFOptions) => {
+    const { fileId, fileName } = downloadModalState;
+    setDownloadModalState(prev => ({ ...prev, isOpen: false })); // Close modal immediately
+
     const file = files.find(f => f.id === fileId);
     if (!file) return;
 
@@ -84,7 +109,7 @@ const App: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 300));
     }
 
-    await downloadPDF(`preview-${fileId}`, fileName);
+    await downloadPDF(`preview-${fileId}`, fileName, options);
   };
 
   return (
@@ -157,7 +182,7 @@ const App: React.FC = () => {
                       onRemove={removeFile}
                       onToggleExpand={toggleExpand}
                       onAnalyze={handleAnalyze}
-                      onDownload={handleDownloadPDF}
+                      onDownload={openDownloadModal}
                     />
                     
                     {/* Expandable Preview Area */}
@@ -182,6 +207,14 @@ const App: React.FC = () => {
         )}
 
       </main>
+
+      {/* Download Options Modal */}
+      <DownloadModal 
+        isOpen={downloadModalState.isOpen}
+        fileName={downloadModalState.fileName}
+        onClose={() => setDownloadModalState(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={handleConfirmDownload}
+      />
     </div>
   );
 };

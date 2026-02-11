@@ -9,14 +9,14 @@ const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 export const analyzeExcelData = async (sheets: ParsedSheet[]): Promise<string> => {
   if (!ai) {
-    return "API Key가 설정되지 않았습니다. .env 파일을 확인해주세요.";
+    throw new Error("API Key가 설정되지 않았습니다. .env 파일을 확인해주세요.");
   }
 
   try {
     // Prepare a sample of data to send to Gemini (avoid token limits)
     // We take the first 10 rows of the first sheet as a sample.
     const firstSheet = sheets[0];
-    if (!firstSheet) return "데이터가 비어있습니다.";
+    if (!firstSheet) throw new Error("데이터가 비어있습니다.");
 
     const sampleRows = firstSheet.data.slice(0, 15).map(row => row.join(", ")).join("\n");
     const headerStr = firstSheet.headers.join(", ");
@@ -37,9 +37,14 @@ export const analyzeExcelData = async (sheets: ParsedSheet[]): Promise<string> =
       contents: prompt,
     });
 
-    return response.text || "요약을 생성할 수 없습니다.";
-  } catch (error) {
+    if (!response.text) {
+        throw new Error("AI 응답을 생성할 수 없습니다.");
+    }
+
+    return response.text;
+  } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
-    return "AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+    // Provide a cleaner error message for the UI
+    throw new Error(error.message || "AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
   }
 };
