@@ -1,0 +1,5 @@
+{
+  "name": "ExcelToPDF AI Pro",
+  "description": "다중 엑셀 파일 업로드, AI 데이터 요약 및 PDF 변환 기능을 제공하는 모던 웹 애플리케이션입니다.",
+  "requestFramePermissions": []
+}
